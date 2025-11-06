@@ -1,0 +1,24 @@
+[
+  {
+    "id": "6kg0IgvEIN",
+    "title": "fuego",
+    "description": "Arde",
+    "code": "456",
+    "price": 520,
+    "status": true,
+    "stock": 45,
+    "category": "Fuego",
+    "thumbnails": []
+  },
+  {
+    "id": "B-w-EhUm26",
+    "title": "hol",
+    "description": "slls",
+    "code": "545",
+    "price": 6545,
+    "status": true,
+    "stock": 22,
+    "category": "5456",
+    "thumbnails": []
+  }
+]

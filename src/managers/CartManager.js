@@ -1,61 +1,40 @@
-import { readJSON, writeJSON, resolveDataPath } from "../utils/fileUtils.js";
-import { customAlphabet } from "nanoid";
-
-const nanoid = customAlphabet(
-  "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-  10
-);
-
+import { nanoid } from "nanoid";
+import { readJSON, writeJSON } from "../utils/fileUtils.js";
+import ProductManager from "./ProductManager.js";
+const CARTS_FILE = "src/data/carts.json";
+const pm = new ProductManager();
 export default class CartManager {
-  constructor(filename = "carts.json") {
-    this.path = resolveDataPath(filename);
-  }
-
   async getCarts() {
-    return await readJSON(this.path);
+    const data = await readJSON(CARTS_FILE);
+    return Array.isArray(data) ? data : [];
   }
-
-  async createCart() {
-    const carts = await this.getCarts();
-    const newCart = { id: nanoid(), products: [] };
-    carts.push(newCart);
-    await writeJSON(this.path, carts);
-    return newCart;
-  }
-
   async getCartById(id) {
-    const carts = await this.getCarts();
-    return carts.find((c) => String(c.id) === String(id)) || null;
+    const list = await this.getCarts();
+    return list.find((c) => c.id === id);
   }
-
+  async createCart() {
+    const list = await this.getCarts();
+    const cart = { id: nanoid(10), products: [] };
+    list.push(cart);
+    await writeJSON(CARTS_FILE, list);
+    return cart;
+  }
   async addProductToCart(cartId, productId, quantity = 1) {
-    const qty = Number(quantity);
-    if (!Number.isInteger(qty) || qty < 1) {
-      const err = new Error("quantity debe ser un entero >= 1");
-      err.status = 400;
-      throw err;
-    }
-
-    const carts = await this.getCarts();
-    const idx = carts.findIndex((c) => String(c.id) === String(cartId));
-    if (idx === -1) {
-      const err = new Error("Carrito no encontrado");
-      err.status = 404;
-      throw err;
-    }
-
-    const cart = carts[idx];
-    const existing = cart.products.find(
-      (p) => String(p.product) === String(productId)
-    );
-    if (existing) {
-      existing.quantity += qty;
-    } else {
-      cart.products.push({ product: String(productId), quantity: qty });
-    }
-
-    carts[idx] = cart;
-    await writeJSON(this.path, carts);
+    const list = await this.getCarts();
+    const cidx = list.findIndex((c) => c.id === cartId);
+    if (cidx === -1) throw new Error("Carrito no encontrado");
+    const product = await pm.getProductById(productId);
+    if (!product) throw new Error("Producto no existe");
+    const cart = list[cidx];
+    const pidx = cart.products.findIndex((p) => p.product === productId);
+    if (pidx === -1)
+      cart.products.push({
+        product: productId,
+        quantity: Number(quantity) || 1,
+      });
+    else cart.products[pidx].quantity += Number(quantity) || 1;
+    list[cidx] = cart;
+    await writeJSON(CARTS_FILE, list);
     return cart;
   }
 }

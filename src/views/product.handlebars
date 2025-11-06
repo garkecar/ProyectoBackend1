@@ -1,0 +1,24 @@
+<section>
+  <h1>{{product.title}}</h1>
+  <p>{{product.description}}</p>
+  <ul>
+    <li>Precio: ${{product.price}}</li>
+    <li>Stock: {{product.stock}}</li>
+    <li>Código: {{product.code}}</li>
+    <li>Categoría: {{product.category}}</li>
+    <li>ID: {{product.id}}</li>
+  </ul>
+  {{#if product.thumbnails.length}}
+    <h3>Imágenes</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      {{#each product.thumbnails}}
+        <img
+          src="{{this}}"
+          alt="thumb"
+          style="max-width:180px;border:1px solid #e5e5e5;border-radius:6px"
+        />
+      {{/each}}
+    </div>
+  {{/if}}
+  <p><a href="/">Volver al listado</a></p>
+</section>

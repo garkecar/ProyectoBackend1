@@ -1,0 +1,23 @@
+<section>
+  <h1>Productos (Home)</h1>
+  {{#if products.length}}
+    <ul class="product-list">
+      {{#each products}}
+        <li class="product-item">
+          <a href="/products/{{this.id}}"><strong>{{this.title}}</strong></a>
+          — ${{this.price}}
+          — Stock:
+          {{this.stock}}
+          <div class="muted">ID:
+            {{this.id}}
+            | Code:
+            {{this.code}}
+            | Cat:
+            {{this.category}}</div>
+        </li>
+      {{/each}}
+    </ul>
+  {{else}}
+    <p>No hay productos aún.</p>
+  {{/if}}
+</section>

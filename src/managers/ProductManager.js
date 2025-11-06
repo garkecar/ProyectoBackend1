@@ -1,26 +1,16 @@
-import { readJSON, writeJSON, resolveDataPath } from "../utils/fileUtils.js";
-import { customAlphabet } from "nanoid";
-
-const nanoid = customAlphabet(
-  "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-  10
-);
-
+import { nanoid } from "nanoid";
+import { readJSON, writeJSON } from "../utils/fileUtils.js";
+const PRODUCTS_FILE = "src/data/products.json";
 export default class ProductManager {
-  constructor(filename = "products.json") {
-    this.path = resolveDataPath(filename);
-  }
-
   async getProducts() {
-    return await readJSON(this.path);
+    const data = await readJSON(PRODUCTS_FILE);
+    return Array.isArray(data) ? data : [];
   }
-
   async getProductById(id) {
-    const products = await this.getProducts();
-    return products.find((p) => String(p.id) === String(id)) || null;
+    const list = await this.getProducts();
+    return list.find((p) => p.id === id);
   }
-
-  async addProduct(productData) {
+  async addProduct(p) {
     const required = [
       "title",
       "description",
@@ -30,90 +20,46 @@ export default class ProductManager {
       "stock",
       "category",
     ];
-    for (const f of required) {
-      if (productData[f] === undefined) {
-        const err = new Error(`Falta el campo requerido: ${f}`);
-        err.status = 400;
-        throw err;
-      }
+    for (const k of required) {
+      if (p[k] === undefined || p[k] === null || p[k] === "")
+        throw new Error(`Falta campo: ${k}`);
     }
-
-    const products = await this.getProducts();
-
-    // Validar code único (usualmente se pide)
-    if (products.some((p) => p.code === productData.code)) {
-      const err = new Error("El código del producto ya existe");
-      err.status = 400;
-      throw err;
-    }
-
-    const newProduct = {
-      id: nanoid(), // Autogenerado
-      title: String(productData.title),
-      description: String(productData.description),
-      code: String(productData.code),
-      price: Number(productData.price),
-      status: Boolean(productData.status),
-      stock: Number(productData.stock),
-      category: String(productData.category),
-      thumbnails: Array.isArray(productData.thumbnails)
-        ? productData.thumbnails.map(String)
-        : [],
+    const list = await this.getProducts();
+    if (list.some((x) => x.code === p.code))
+      throw new Error("Código duplicado");
+    const newP = {
+      id: nanoid(10),
+      title: String(p.title),
+      description: String(p.description),
+      code: String(p.code),
+      price: Number(p.price),
+      status: Boolean(p.status),
+      stock: Number(p.stock),
+      category: String(p.category),
+      thumbnails: Array.isArray(p.thumbnails) ? p.thumbnails : [],
     };
-
-    products.push(newProduct);
-    await writeJSON(this.path, products);
-    return newProduct;
+    list.push(newP);
+    await writeJSON(PRODUCTS_FILE, list);
+    return newP;
   }
-
-  async updateProduct(id, updates) {
-    if (!updates || typeof updates !== "object") {
-      const err = new Error("Body inválido para actualización");
-      err.status = 400;
-      throw err;
-    }
-
-    // No permitir modificar id
-    // eslint-disable-next-line no-unused-vars
-    const { id: _ignored, ...safeUpdates } = updates;
-
-    const products = await this.getProducts();
-    const idx = products.findIndex((p) => String(p.id) === String(id));
-    if (idx === -1) {
-      const err = new Error("Producto no encontrado");
-      err.status = 404;
-      throw err;
-    }
-
-    const updated = { ...products[idx], ...safeUpdates };
-    // Normalizaciones básicas si vinieron en update
-    if (safeUpdates.price !== undefined)
-      updated.price = Number(safeUpdates.price);
-    if (safeUpdates.status !== undefined)
-      updated.status = Boolean(safeUpdates.status);
-    if (safeUpdates.stock !== undefined)
-      updated.stock = Number(safeUpdates.stock);
-    if (safeUpdates.thumbnails !== undefined) {
-      updated.thumbnails = Array.isArray(safeUpdates.thumbnails)
-        ? safeUpdates.thumbnails.map(String)
-        : [];
-    }
-
-    products[idx] = updated;
-    await writeJSON(this.path, products);
+  async updateProduct(id, patch) {
+    const list = await this.getProducts();
+    const idx = list.findIndex((p) => p.id === id);
+    if (idx === -1) throw new Error("Producto no encontrado");
+    const current = list[idx];
+    const updated = { ...current, ...patch };
+    if (updated.price != null) updated.price = Number(updated.price);
+    if (updated.stock != null) updated.stock = Number(updated.stock);
+    list[idx] = updated;
+    await writeJSON(PRODUCTS_FILE, list);
     return updated;
   }
-
   async deleteProduct(id) {
-    const products = await this.getProducts();
-    const initialLen = products.length;
-    const filtered = products.filter((p) => String(p.id) !== String(id));
-    if (filtered.length === initialLen) {
-      const err = new Error("Producto no encontrado");
-      err.status = 404;
-      throw err;
-    }
-    await writeJSON(this.path, filtered);
+    const list = await this.getProducts();
+    const idx = list.findIndex((p) => p.id === id);
+    if (idx === -1) throw new Error("Producto no encontrado");
+    list.splice(idx, 1);
+    await writeJSON(PRODUCTS_FILE, list);
     return true;
   }
 }
