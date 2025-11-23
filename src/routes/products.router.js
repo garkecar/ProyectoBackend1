@@ -1,52 +1,165 @@
 import { Router } from "express";
-import ProductManager from "../managers/ProductManager.js";
-const router = Router();
-const pm = new ProductManager();
+import { ProductModel } from "../dao/models/product.model.js";
 
+const router = Router();
+
+/**
+ * GET /api/products
+ * Query params:
+ *  - limit (default 10)
+ *  - page (default 1)
+ *  - sort: 'asc' | 'desc' por precio
+ *  - query: filtro (category:xxx o status:true/false)
+ *
+ * Devuelve:
+ * {
+ *   status: 'success' | 'error',
+ *   payload: [...],
+ *   totalPages,
+ *   prevPage,
+ *   nextPage,
+ *   page,
+ *   hasPrevPage,
+ *   hasNextPage,
+ *   prevLink,
+ *   nextLink
+ * }
+ */
 router.get("/", async (req, res, next) => {
   try {
-    const limit = req.query.limit ? Number(req.query.limit) : undefined;
-    let products = await pm.getProducts();
-    if (limit && !Number.isNaN(limit)) products = products.slice(0, limit);
-    res.json(products);
-  } catch (e) {
-    next(e);
+    const { limit = 10, page = 1, sort, query } = req.query;
+
+    const limitNum = Number(limit) || 10;
+    const pageNum = Number(page) || 1;
+
+    // Filtro
+    const filter = {};
+    if (query) {
+      // Formato: category:Electrónica o status:true
+      const [field, value] = String(query).split(":");
+      if (field && value !== undefined) {
+        if (field === "status") {
+          filter.status = value === "true";
+        } else if (field === "category") {
+          filter.category = value;
+        }
+      }
+    }
+
+    // Orden
+    const sortOption = {};
+    if (sort === "asc") sortOption.price = 1;
+    if (sort === "desc") sortOption.price = -1;
+
+    const skip = (pageNum - 1) * limitNum;
+
+    const [docs, totalDocs] = await Promise.all([
+      ProductModel.find(filter)
+        .sort(sortOption)
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      ProductModel.countDocuments(filter),
+    ]);
+
+    const totalPages = Math.ceil(totalDocs / limitNum) || 1;
+    const hasPrevPage = pageNum > 1;
+    const hasNextPage = pageNum < totalPages;
+    const prevPage = hasPrevPage ? pageNum - 1 : null;
+    const nextPage = hasNextPage ? pageNum + 1 : null;
+
+    const baseUrl = `${req.protocol}://${req.get("host")}${req.baseUrl}`;
+    const buildLink = (p) => {
+      if (!p) return null;
+      const params = new URLSearchParams();
+      params.set("page", p);
+      params.set("limit", limitNum);
+      if (sort) params.set("sort", sort);
+      if (query) params.set("query", query);
+      return `${baseUrl}?${params.toString()}`;
+    };
+
+    return res.json({
+      status: "success",
+      payload: docs,
+      totalPages,
+      prevPage,
+      nextPage,
+      page: pageNum,
+      hasPrevPage,
+      hasNextPage,
+      prevLink: hasPrevPage ? buildLink(prevPage) : null,
+      nextLink: hasNextPage ? buildLink(nextPage) : null,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      status: "error",
+      error: err.message,
+    });
   }
 });
+
 router.get("/:pid", async (req, res, next) => {
   try {
-    const p = await pm.getProductById(req.params.pid);
-    if (!p) return res.status(404).json({ error: "Producto no encontrado" });
-    res.json(p);
+    const p = await ProductModel.findById(req.params.pid).lean();
+    if (!p)
+      return res
+        .status(404)
+        .json({ status: "error", error: "Producto no encontrado" });
+    res.json({ status: "success", payload: p });
   } catch (e) {
     next(e);
   }
 });
+
 router.post("/", async (req, res) => {
   try {
-    const created = await pm.addProduct(req.body || {});
-    req.app?.locals?.io?.emit("products:list", await pm.getProducts());
-    res.status(201).json(created);
+    const created = await ProductModel.create(req.body || {});
+    // Emitir a WebSocket
+    const allProducts = await ProductModel.find().lean();
+    req.app?.locals?.io?.emit("products:list", allProducts);
+    res.status(201).json({ status: "success", payload: created });
   } catch (e) {
-    res.status(400).json({ error: e.message });
+    res.status(400).json({ status: "error", error: e.message });
   }
 });
+
 router.put("/:pid", async (req, res) => {
   try {
-    const updated = await pm.updateProduct(req.params.pid, req.body || {});
-    req.app?.locals?.io?.emit("products:list", await pm.getProducts());
-    res.json(updated);
+    const updated = await ProductModel.findByIdAndUpdate(
+      req.params.pid,
+      req.body || {},
+      { new: true, runValidators: true }
+    ).lean();
+    if (!updated)
+      return res
+        .status(404)
+        .json({ status: "error", error: "Producto no encontrado" });
+
+    // Emitir a WebSocket
+    const allProducts = await ProductModel.find().lean();
+    req.app?.locals?.io?.emit("products:list", allProducts);
+    res.json({ status: "success", payload: updated });
   } catch (e) {
-    res.status(400).json({ error: e.message });
+    res.status(400).json({ status: "error", error: e.message });
   }
 });
+
 router.delete("/:pid", async (req, res) => {
   try {
-    await pm.deleteProduct(req.params.pid);
-    req.app?.locals?.io?.emit("products:list", await pm.getProducts());
-    res.json({ message: "Producto eliminado" });
+    const deleted = await ProductModel.findByIdAndDelete(req.params.pid);
+    if (!deleted)
+      return res
+        .status(404)
+        .json({ status: "error", error: "Producto no encontrado" });
+
+    // Emitir a WebSocket
+    const allProducts = await ProductModel.find().lean();
+    req.app?.locals?.io?.emit("products:list", allProducts);
+    res.json({ status: "success", message: "Producto eliminado" });
   } catch (e) {
-    res.status(404).json({ error: e.message });
+    res.status(404).json({ status: "error", error: e.message });
   }
 });
+
 export default router;

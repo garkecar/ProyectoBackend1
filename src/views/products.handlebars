@@ -1,0 +1,74 @@
+<section>
+  <h1>Productos</h1>
+
+  {{#if products.length}}
+    <ul class="product-list">
+      {{#each products}}
+        <li class="product-item">
+          <a href="/products/{{this._id}}">
+            <strong>{{this.title}}</strong>
+          </a>
+          — ${{this.price}} — Stock: {{this.stock}}
+          <div class="muted">
+            Cat: {{this.category}}
+          </div>
+
+          {{!-- Botón directo para agregar al carrito --}}
+          <button
+            class="btn-add-cart"
+            data-pid="{{this._id}}"
+          >
+            Agregar al carrito
+          </button>
+        </li>
+      {{/each}}
+    </ul>
+  {{else}}
+    <p>No hay productos.</p>
+  {{/if}}
+
+  <nav class="pagination">
+    {{#if paging.hasPrevPage}}
+      <a href="/products?page={{paging.prevPage}}&limit={{paging.limit}}{{#if paging.sort}}&sort={{paging.sort}}{{/if}}{{#if paging.query}}&query={{paging.query}}{{/if}}">Anterior</a>
+    {{/if}}
+
+    <span>Página {{paging.page}} de {{paging.totalPages}}</span>
+
+    {{#if paging.hasNextPage}}
+      <a href="/products?page={{paging.nextPage}}&limit={{paging.limit}}{{#if paging.sort}}&sort={{paging.sort}}{{/if}}{{#if paging.query}}&query={{paging.query}}{{/if}}">Siguiente</a>
+    {{/if}}
+  </nav>
+</section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const buttons = document.querySelectorAll('.btn-add-cart');
+    const CART_ID = '{{cartId}}'; // Inyecta un cartId desde el servidor
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const pid = btn.dataset.pid;
+
+        if (!CART_ID) {
+          alert('No hay carrito asignado. Crea uno primero con POST /api/carts');
+          return;
+        }
+
+        const res = await fetch(`/api/carts/${CART_ID}/product/${pid}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quantity: 1 })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || data.status === 'error') {
+          window.showToast?.('Error al agregar: ' + (data.error || res.status), 'error');
+          return;
+        }
+
+        window.showToast?.('Producto agregado al carrito', 'success');
+      });
+    });
+  });
+</script>

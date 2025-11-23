@@ -2,13 +2,13 @@
   <h1>Productos en tiempo real</h1>
   <ul id="rt-products" class="product-list">
     {{#each products}}
-      <li data-id="{{this.id}}" class="product-item">
+      <li data-id="{{this._id}}" class="product-item">
         <strong>{{this.title}}</strong>
         — ${{this.price}}
         — Stock:
         {{this.stock}}
         <div class="muted">ID:
-          {{this.id}}
+          {{this._id}}
           | Code:
           {{this.code}}
           | Cat:

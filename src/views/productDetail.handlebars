@@ -1,0 +1,58 @@
+<section>
+  <h1>{{product.title}}</h1>
+
+  <div class="product-detail">
+    <p><strong>Descripción:</strong> {{product.description}}</p>
+    <p><strong>Precio:</strong> ${{product.price}}</p>
+    <p><strong>Stock disponible:</strong> {{product.stock}} unidades</p>
+    <p><strong>Categoría:</strong> {{product.category}}</p>
+    <p><strong>Código:</strong> {{product.code}}</p>
+    <p><strong>Estado:</strong>
+      {{#if product.status}}Activo{{else}}Inactivo{{/if}}</p>
+
+    {{#if product.thumbnails.length}}
+      <div class="thumbnails">
+        <strong>Imágenes:</strong>
+        <ul>
+          {{#each product.thumbnails}}
+            <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+    {{/if}}
+  </div>
+
+  <div class="actions">
+    <button class="btn-add-cart" data-pid="{{product._id}}">
+      Agregar al carrito
+    </button>
+    <a href="/products" class="btn-back">Volver a productos</a>
+  </div>
+</section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => { const btn =
+  document.querySelector('.btn-add-cart'); const CART_ID =
+  '6920e6da8d8c351fe45c0e19'; // Reemplaza con tu cartId real if (btn) {
+  btn.addEventListener('click', async () => { const pid = btn.dataset.pid; if
+  (!CART_ID) { alert('No hay carrito asignado. Crea uno primero con POST
+  /api/carts'); return; } const res = await
+  fetch(`/api/carts/${CART_ID}/product/${pid}`, { method: 'POST', headers: {
+  'Content-Type': 'application/json' }, body: JSON.stringify({ quantity: 1 })
+  }); const data = await res.json().catch(() => ({})); if (!res.ok ||
+  data.status === 'error') { alert('Error al agregar: ' + (data.error ||
+  res.status)); return; } alert('Producto agregado al carrito'); }); } });
+</script>
+
+<style>
+  .product-detail { margin: 20px 0; padding: 20px; border: 1px solid #ddd;
+  border-radius: 8px; background-color: #f9f9f9; } .product-detail p { margin:
+  10px 0; font-size: 16px; } .thumbnails { margin-top: 15px; } .thumbnails ul {
+  list-style: none; padding: 0; } .thumbnails li { margin: 5px 0; color: #555; }
+  .actions { margin-top: 20px; display: flex; gap: 10px; } .btn-add-cart {
+  padding: 10px 20px; background-color: #28a745; color: white; border: none;
+  border-radius: 5px; cursor: pointer; font-size: 16px; } .btn-add-cart:hover {
+  background-color: #218838; } .btn-back { padding: 10px 20px; background-color:
+  #007bff; color: white; text-decoration: none; border-radius: 5px; font-size:
+  16px; display: inline-block; } .btn-back:hover { background-color: #0056b3; }
+</style>
