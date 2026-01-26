@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const MONGO_URI =
-  "mongodb+srv://admin:123pass456@ecommerce-entrega.bl2tkrk.mongodb.net/ecommerce?retryWrites=true&w=majority&appName=ecommerce-entrega";
+  "mongodb+srv://admin:dePlsawDQGTKePCz@ecommerce-entrega.bl2tkrk.mongodb.net/?appName=ecommerce-entrega";
 
 export async function connectDB() {
   try {

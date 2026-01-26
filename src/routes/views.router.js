@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { ProductModel } from "../dao/models/product.model.js";
-import { CartModel } from "../dao/models/cart.model.js";
+import Product from "../dao/models/product.model.js";
+import Cart from "../dao/models/cart.model.js";
 
 const router = Router();
 
@@ -37,12 +37,8 @@ router.get("/products", async (req, res, next) => {
     const skip = (pageNum - 1) * limitNum;
 
     const [docs, totalDocs] = await Promise.all([
-      ProductModel.find(filter)
-        .sort(sortOption)
-        .skip(skip)
-        .limit(limitNum)
-        .lean(),
-      ProductModel.countDocuments(filter),
+      Product.find(filter).sort(sortOption).skip(skip).limit(limitNum).lean(),
+      Product.countDocuments(filter),
     ]);
 
     const totalPages = Math.ceil(totalDocs / limitNum) || 1;
@@ -76,7 +72,7 @@ router.get("/products", async (req, res, next) => {
 // Vista realtime (lista en tiempo real)
 router.get("/realtimeproducts", async (req, res, next) => {
   try {
-    const products = await ProductModel.find().lean();
+    const products = await Product.find().lean();
     res.render("realTimeProducts", { title: "Real-Time", products });
   } catch (e) {
     next(e);
@@ -86,7 +82,7 @@ router.get("/realtimeproducts", async (req, res, next) => {
 // DETALLE de producto -> usa vista "productDetail"
 router.get("/products/:pid", async (req, res, next) => {
   try {
-    const product = await ProductModel.findById(req.params.pid).lean();
+    const product = await Product.findById(req.params.pid).lean();
     if (!product) {
       return res.status(404).render("404", { title: "Producto no encontrado" });
     }
@@ -103,7 +99,7 @@ router.get("/products/:pid", async (req, res, next) => {
 // Vista de carrito -> usa vista "cart"
 router.get("/carts/:cid", async (req, res, next) => {
   try {
-    const cart = await CartModel.findById(req.params.cid)
+    const cart = await Cart.findById(req.params.cid)
       .populate("products.product")
       .lean();
 

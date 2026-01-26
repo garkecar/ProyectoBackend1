@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { ProductModel } from "../dao/models/product.model.js";
+import Product from "../dao/models/product.model.js";
+import { authenticateJWT, authorize } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -54,12 +55,8 @@ router.get("/", async (req, res, next) => {
     const skip = (pageNum - 1) * limitNum;
 
     const [docs, totalDocs] = await Promise.all([
-      ProductModel.find(filter)
-        .sort(sortOption)
-        .skip(skip)
-        .limit(limitNum)
-        .lean(),
-      ProductModel.countDocuments(filter),
+      Product.find(filter).sort(sortOption).skip(skip).limit(limitNum).lean(),
+      Product.countDocuments(filter),
     ]);
 
     const totalPages = Math.ceil(totalDocs / limitNum) || 1;
@@ -101,7 +98,7 @@ router.get("/", async (req, res, next) => {
 
 router.get("/:pid", async (req, res, next) => {
   try {
-    const p = await ProductModel.findById(req.params.pid).lean();
+    const p = await Product.findById(req.params.pid).lean();
     if (!p)
       return res
         .status(404)
@@ -112,11 +109,11 @@ router.get("/:pid", async (req, res, next) => {
   }
 });
 
-router.post("/", async (req, res) => {
+router.post("/", authenticateJWT, authorize("admin"), async (req, res) => {
   try {
-    const created = await ProductModel.create(req.body || {});
+    const created = await Product.create(req.body || {});
     // Emitir a WebSocket
-    const allProducts = await ProductModel.find().lean();
+    const allProducts = await Product.find().lean();
     req.app?.locals?.io?.emit("products:list", allProducts);
     res.status(201).json({ status: "success", payload: created });
   } catch (e) {
@@ -124,9 +121,9 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.put("/:pid", async (req, res) => {
+router.put("/:pid", authenticateJWT, authorize("admin"), async (req, res) => {
   try {
-    const updated = await ProductModel.findByIdAndUpdate(
+    const updated = await Product.findByIdAndUpdate(
       req.params.pid,
       req.body || {},
       { new: true, runValidators: true }
@@ -137,7 +134,7 @@ router.put("/:pid", async (req, res) => {
         .json({ status: "error", error: "Producto no encontrado" });
 
     // Emitir a WebSocket
-    const allProducts = await ProductModel.find().lean();
+    const allProducts = await Product.find().lean();
     req.app?.locals?.io?.emit("products:list", allProducts);
     res.json({ status: "success", payload: updated });
   } catch (e) {
@@ -145,21 +142,26 @@ router.put("/:pid", async (req, res) => {
   }
 });
 
-router.delete("/:pid", async (req, res) => {
-  try {
-    const deleted = await ProductModel.findByIdAndDelete(req.params.pid);
-    if (!deleted)
-      return res
-        .status(404)
-        .json({ status: "error", error: "Producto no encontrado" });
+router.delete(
+  "/:pid",
+  authenticateJWT,
+  authorize("admin"),
+  async (req, res) => {
+    try {
+      const deleted = await Product.findByIdAndDelete(req.params.pid);
+      if (!deleted)
+        return res
+          .status(404)
+          .json({ status: "error", error: "Producto no encontrado" });
 
-    // Emitir a WebSocket
-    const allProducts = await ProductModel.find().lean();
-    req.app?.locals?.io?.emit("products:list", allProducts);
-    res.json({ status: "success", message: "Producto eliminado" });
-  } catch (e) {
-    res.status(404).json({ status: "error", error: e.message });
+      // Emitir a WebSocket
+      const allProducts = await Product.find().lean();
+      req.app?.locals?.io?.emit("products:list", allProducts);
+      res.json({ status: "success", message: "Producto eliminado" });
+    } catch (e) {
+      res.status(404).json({ status: "error", error: e.message });
+    }
   }
-});
+);
 
 export default router;
